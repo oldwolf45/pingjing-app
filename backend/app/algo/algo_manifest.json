@@ -1,0 +1,42 @@
+{
+  "version": "v1+63356068",
+  "digest": "633560688b9b3218ee97fb7fc4414da7e454db85a3d0c64f39d89017d78e4c83",
+  "files": {
+    "barrier_engine.py": {
+      "sha256": "5be267cc18c4abb484ce8b3cddce26dc697566b7c2f5b49ac923039bc6ef0ac5",
+      "size": 27571
+    },
+    "config.py": {
+      "sha256": "4126b8bd60644b52cb07dd65cff450887ee380d75fd1c0ffb10022db00d121b4",
+      "size": 25852
+    },
+    "fin_fetcher.py": {
+      "sha256": "d44b9323f302df503ae8d5e94e950dfe31dc1996223321166093b8adadfb18c3",
+      "size": 6850
+    },
+    "flow_fetcher.py": {
+      "sha256": "304630b570fcdd2880597f93057d1f5e5c82f7813d5f2706d563037dee04243e",
+      "size": 7473
+    },
+    "pool_manager.py": {
+      "sha256": "e2a821974f626f7aeb4736b2d76b63ded0fb7e9ce73c4c0bb8e2afa7f83b4ac8",
+      "size": 29179
+    },
+    "pool_rotation.py": {
+      "sha256": "dc2f264fcda466b1b8ce932eb605fbb78d14d639ee0df3b366f295ea91f9310f",
+      "size": 15145
+    },
+    "popularity_engine.py": {
+      "sha256": "26b1d5c792704b845e83d2b1efafe2d95d69b1d4127d29e74dfed4f7c1b01483",
+      "size": 15565
+    },
+    "scoring_engine.py": {
+      "sha256": "37a9501c6cc323aa4dc0e5373760f7c554b43c490a6a69cd1608ebaad8c5c4a4",
+      "size": 24960
+    },
+    "sector_intel.py": {
+      "sha256": "5c7f3233e6ab07c9a8c1bd89ac29a5afad3e9075afee6940ce05a4b00e1e009d",
+      "size": 21792
+    }
+  }
+}

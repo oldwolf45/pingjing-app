@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>紫苏叶策略</title>
+    <script>
+      // 前端异常上报：pywebview 里没有控制台可看，JS 报错必须能落到后端日志里，
+      // 否则界面白屏时完全无从查起。
+      (function () {
+        function send(kind, msg, extra) {
+          try {
+            fetch('/api/meta/client-log', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ kind: kind, message: String(msg), extra: extra || '', url: location.href, ua: navigator.userAgent }),
+            });
+          } catch (e) { /* 上报本身不能失败成第二个错误 */ }
+        }
+        window.addEventListener('error', function (e) {
+          send('error', e.message, (e.filename || '') + ':' + (e.lineno || ''));
+        }, true);
+        window.addEventListener('unhandledrejection', function (e) {
+          send('rejection', (e.reason && (e.reason.stack || e.reason.message)) || e.reason);
+        });
+        send('boot', 'html loaded');
+        setTimeout(function () {
+          var app = document.getElementById('app');
+          var n = app ? app.children.length : -1;
+          if (n > 0) { send('mounted', 'children=' + n); }
+          else { send('mount-timeout', 'app 未挂载', 'children=' + n + ' readyState=' + document.readyState); }
+        }, 3000);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

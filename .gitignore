@@ -1,0 +1,31 @@
+# ---- 虚拟环境 / Python ----
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# ---- 打包产物 ----
+build/
+dist/
+*.spec.bak
+
+# ---- 前端依赖与构建 ----
+node_modules/
+frontend/dist/
+
+# ---- 运行数据（数据库 / 备份 / 日志 / 缓存 / 导出）----
+backend/data_local/
+*.db
+*.db-shm
+*.db-wal
+
+# ---- 冒烟 / 自检 / 演示的临时数据 ----
+.smoke_data/
+.smoke_ui_data/
+.selftest_data/
+.apidemo/
+
+# ---- 系统 / 编辑器 ----
+.DS_Store
+Thumbs.db
