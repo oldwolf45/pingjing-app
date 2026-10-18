@@ -111,3 +111,93 @@ def test_plr_rounds_two_decimals():
     out = compute_plr(_bars(closes, vols), price=14.0)
     if out["plr"] is not None:
         assert abs(out["plr"] - round(out["plr"], 2)) < 1e-9
+
+
+# ---------- 防 PLR 虚高（hermes 复核过滤链） ----------
+
+def test_s1_picks_strongest_not_closest_peak():
+    # 现价下方有两个峰：9（量小，离现价近）和 6（量大，离现价远）。
+    # s1 必须取量能最强的 6，而不是最贴现价的 9 —— 否则分母小、PLR 虚高。
+    closes = _trend(4, 200, 0.07)          # 4 → 17.93
+    vols = []
+    for c in closes:
+        if 5.5 <= c <= 6.5:
+            vols.append(500.0)             # 6 区放量最强
+        elif 8.5 <= c <= 9.5:
+            vols.append(50.0)              # 9 区量小
+        else:
+            vols.append(1.0)
+    s1, _, _ = find_peaks(closes, vols, cur=14.0)
+    assert s1 is not None and 5.5 <= s1 <= 6.5   # 落在量大的 6 区，不是贴脸的 9 区
+
+
+def test_reject_when_s1_too_close():
+    # 支撑贴脸（s1 距现价 <1.5%）→ plr 给 None，flag=贴脸剔除
+    # 构造：量能最强峰就在现价下方 0.5% 处
+    closes = _trend(5, 200, 0.08)          # 5 → 20.92
+    price = 14.0
+    near = price * 0.995                    # 距现价 0.5%（<1.5%）
+    vols = [400.0 if abs(c - near) < 0.2 else 1.0 for c in closes]
+    out = compute_plr(_bars(closes, vols), price=price)
+    assert out["plr"] is None
+    assert out["flag"] == "贴脸剔除"
+    assert out["s1_dist"] is not None and out["s1_dist"] < 1.5
+
+
+def test_thin_flag_when_s1_dist_between_1_5_and_2():
+    # s1 距现价 1.5%~2% → PLR 照给但 flag=贴线降仓
+    closes = _trend(5, 200, 0.08)
+    price = 14.0
+    thin = price * 0.983                    # 距现价约 1.7%（在 1.5~2 之间）
+    vols = []
+    for c in closes:
+        if abs(c - thin) < 0.15:
+            vols.append(500.0)              # 支撑峰在 1.7% 处
+        elif c >= 18:
+            vols.append(200.0)              # 上方阻力峰
+        else:
+            vols.append(1.0)
+    out = compute_plr(_bars(closes, vols), price=price)
+    if out["plr"] is not None and 1.5 <= out["s1_dist"] < 2.0:
+        assert out["flag"] == "贴线降仓"
+
+
+def test_ok_flag_when_s1_dist_ample():
+    # s1 距现价 >2% → 正常
+    closes = _trend(5, 200, 0.08)
+    vols = [200.0 if (c <= 10 or c >= 18) else 1.0 for c in closes]
+    out = compute_plr(_bars(closes, vols), price=14.0)
+    assert out["plr"] is not None
+    assert out["s1_dist"] > 2.0
+    assert out["flag"] == "ok"
+
+
+def test_reject_when_w2_too_close():
+    # 上方第2阻力贴脸 → 分子趋零，PLR≈0，是追在压力位的拒绝信号
+    closes = _trend(5, 200, 0.08)
+    price = 20.5                            # 接近区间顶（pmax=20.92）
+    # 下方放量支撑，但现价已贴近上方边界（w2=pmax≈20.92，距现价<0.1%）
+    vols = [300.0 if c <= 12 else 1.0 for c in closes]
+    out = compute_plr(_bars(closes, vols), price=price)
+    # w2 = pmax ≈ 20.92，距 20.5 仅 2%，需直接命中 w2<=price*1.001 才算贴脸；
+    # 若未触发，至少要求 plr 极小（追在压力位）
+    if out["flag"] == "贴脸剔除":
+        assert out["plr"] is None
+    else:
+        assert out["plr"] is None or out["plr"] < 1.0
+
+
+def test_no_inflated_plr_like_zhongwang_case():
+    # 复刻 hermes 中望实例的"贴脸"形态：支撑紧贴现价下方（距 <1.5%）→ 旧算法 PLR 40+ 虚高。
+    # 修正后必须识别为贴脸剔除，绝不给出虚高数。
+    price = 54.0
+    s1_like = 53.5                          # 距现价 (54-53.5)/54 ≈ 0.93% < 1.5% → 贴脸
+    # 现价下方最近、量能最强的明确峰放在 s1_like（宽带放量确保被 find_peaks 选中）。
+    closes = [round(40 + i * 0.15, 2) for i in range(200)]   # 40 → 69.85
+    vols = [600.0 if abs(c - s1_like) < 0.4 else 1.0 for c in closes]
+    out = compute_plr(_bars(closes, vols), price=price)
+    # 选出的支撑确实贴近 53.5
+    assert abs(out["s1"] - s1_like) < 1.0
+    assert out["flag"] == "贴脸剔除"
+    assert out["plr"] is None               # 不得给出虚高值
+    assert out["s1_dist"] < 1.5

@@ -19,6 +19,12 @@ N_BINS = 60           # 价格分布桶数
 MIN_BARS = 30         # 最少根数，不足返回 None
 _KERNEL = (1, 2, 4, 2, 1)
 
+# hermes 复核过滤链（2026-08-20 实战定稿）防 PLR 虚高：
+#   s1 支撑带距现价 < 1.5% → 贴脸剔除（这是破位风险线，不是高赔率）
+#   s1 距 1.5% ~ 2%       → 标注"贴线"，应降仓
+S1_DIST_REJECT = 1.5    # %，低于此贴脸，不给 PLR
+S1_DIST_THIN = 2.0      # %，低于此贴线降仓
+
 
 def find_peaks(closes: list[float], vols: list[float], cur: float,
                n_bins: int = N_BINS) -> tuple[float | None, float | None, float | None]:
@@ -51,18 +57,20 @@ def find_peaks(closes: list[float], vols: list[float], cur: float,
         sm[i] = acc / ks
 
     mean_sm = sum(sm) / n_bins
-    peaks: list[float] = []
+    peaks: list[tuple[float, float]] = []   # (峰值价, 平滑后高度)
     for i in range(1, n_bins - 1):
         if sm[i] > sm[i - 1] and sm[i] > sm[i + 1] and sm[i] > mean_sm * 0.3:
-            peaks.append(pmin + (i + 0.5) * bin_w)
+            peaks.append((pmin + (i + 0.5) * bin_w, sm[i]))
     if not peaks:
         return None, None, None
 
-    below = [p for p in peaks if p < cur]
-    above = sorted(p for p in peaks if p > cur)
-    s1 = max(below) if below else pmin
-    w1 = above[0] if above else pmax
-    w2 = above[1] if len(above) >= 2 else pmax
+    # s1 = 现价下方"量能最强"的峰（不是最贴现价的峰）。
+    # 取最贴现价的峰会让支撑贴脸、分母趋零、PLR 虚高（hermes 中望实例 PLR 43.95）。
+    below = [(p, h) for p, h in peaks if p < cur]
+    above = sorted(((p, h) for p, h in peaks if p > cur), key=lambda x: x[0])
+    s1 = max(below, key=lambda x: x[1])[0] if below else pmin
+    w1 = above[0][0] if above else pmax
+    w2 = above[1][0] if len(above) >= 2 else pmax
     return s1, w1, w2
 
 
@@ -71,9 +79,16 @@ def compute_plr(klines: list[dict[str, Any]], price: float,
     """从日K算 PLR。
 
     klines: [{date, close, volume, ...}] 升序；price: 当前价。
-    返回 {plr, s1, w1, w2, bars}；无法计算时 plr 等数值为 None，bars 记实际根数。
+    返回 {plr, s1, w1, w2, s1_dist, flag, bars}；无法计算时 plr 为 None，bars 记实际根数。
+
+    flag 取值：
+      "ok"        正常
+      "贴线降仓"  s1 距现价 1.5%~2%，PLR 仍给出但应降仓
+      "贴脸剔除"  s1 距 <1.5%，破位风险线不是高赔率，plr 给 None
+      "数据不足"  日K根数不够或信号算不出
     """
     out: dict[str, Any] = {"plr": None, "s1": None, "w1": None, "w2": None,
+                           "s1_dist": None, "flag": "数据不足",
                            "bars": 0, "window": window}
     if not klines or price is None or price <= 0:
         return out
@@ -87,6 +102,21 @@ def compute_plr(klines: list[dict[str, Any]], price: float,
 
     s1, w1, w2 = find_peaks(closes, vols, price)
     out["s1"], out["w1"], out["w2"] = s1, w1, w2
-    if s1 is not None and w2 is not None and price > s1 * 1.001 and w2 > price * 1.001:
-        out["plr"] = round((w2 - price) / (price - s1), 2)
+    if s1 is None or w2 is None:
+        return out
+
+    out["s1_dist"] = round((price - s1) / price * 100, 2)
+
+    # 防虚高第一道：支撑贴脸（s1 距 <1.5%）→ 分母趋零，PLR 必虚高，直接剔除不给数
+    if price <= s1 * 1.001 or out["s1_dist"] < S1_DIST_REJECT:
+        out["flag"] = "贴脸剔除"
+        return out
+    # w2 贴脸（上方阻力太近）→ 分子趋零 PLR≈0，是追在压力位的拒绝信号
+    if w2 <= price * 1.001:
+        out["flag"] = "贴脸剔除"
+        return out
+
+    out["plr"] = round((w2 - price) / (price - s1), 2)
+    # 防虚高第二道：s1 距 1.5%~2% 标"贴线"，PLR 照给但提示降仓
+    out["flag"] = "贴线降仓" if out["s1_dist"] < S1_DIST_THIN else "ok"
     return out

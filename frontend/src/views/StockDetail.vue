@@ -115,23 +115,41 @@
             <div class="card-body">
               <p v-if="plrLoading" class="muted small">计算中…</p>
               <template v-else-if="plr">
-                <div class="plr-main">
-                  <span class="plr-value num">{{ plr.plr != null ? plr.plr : '—' }}</span>
-                  <span v-if="plr.plr != null" class="plr-flag small"
-                        :class="plr.plr > 3 ? 'up' : (plr.plr >= 2 ? 'warn' : 'down')">
-                    {{ plr.plr > 3 ? '达标 >3' : (plr.plr >= 2 ? '临界 2-3' : '不达标 <2') }}
-                  </span>
-                </div>
-                <dl v-if="plr.plr != null" class="kv small">
-                  <dt>当前价</dt><dd class="num">{{ plr.price != null ? plr.price.toFixed(2) : '—' }}</dd>
-                  <dt>支撑 s1</dt><dd class="num">{{ plr.s1 != null ? plr.s1.toFixed(2) : '—' }}</dd>
-                  <dt>阻力 w2</dt><dd class="num">{{ plr.w2 != null ? plr.w2.toFixed(2) : '—' }}</dd>
-                  <dt>日K样本</dt><dd class="num">{{ plr.bars }} 根</dd>
-                </dl>
+                <!-- 贴脸剔除：支撑贴脸=破位风险线，不是高赔率，不给数值 -->
+                <template v-if="plr.flag === '贴脸剔除'">
+                  <div class="plr-main">
+                    <span class="plr-value num">—</span>
+                    <span class="plr-flag down small">贴脸剔除</span>
+                  </div>
+                  <p class="muted small">
+                    支撑 s1 距现价仅 {{ plr.s1_dist }}%（&lt;1.5%），这是<b>破位风险线</b>，不是高赔率，PLR 不给数（防虚高）。
+                  </p>
+                </template>
+
+                <!-- 正常 / 贴线降仓 -->
+                <template v-else-if="plr.plr != null">
+                  <div class="plr-main">
+                    <span class="plr-value num">{{ plr.plr }}</span>
+                    <span class="plr-flag small"
+                          :class="plr.flag === '贴线降仓' ? 'warn' : (plr.plr > 3 ? 'up' : (plr.plr >= 2 ? 'warn' : 'down'))">
+                      {{ plr.flag === '贴线降仓' ? '贴线降仓' : (plr.plr > 3 ? '达标 >3' : (plr.plr >= 2 ? '临界 2-3' : '不达标 <2')) }}
+                    </span>
+                  </div>
+                  <dl class="kv small">
+                    <dt>当前价</dt><dd class="num">{{ plr.price != null ? plr.price.toFixed(2) : '—' }}</dd>
+                    <dt>支撑 s1</dt><dd class="num">{{ plr.s1 != null ? plr.s1.toFixed(2) : '—' }}</dd>
+                    <dt>s1 距离</dt><dd class="num">{{ plr.s1_dist }}%</dd>
+                    <dt>阻力 w2</dt><dd class="num">{{ plr.w2 != null ? plr.w2.toFixed(2) : '—' }}</dd>
+                    <dt>日K样本</dt><dd class="num">{{ plr.bars }} 根</dd>
+                  </dl>
+                  <p v-if="plr.flag === '贴线降仓'" class="muted small">支撑距现价 {{ plr.s1_dist }}%（1.5%~2%），信号偏险，按 hermes 复核链应降仓。</p>
+                </template>
+
+                <!-- 数据不足 -->
                 <p v-else class="muted small">
                   {{ plr.error || '技术信号算不出（日K不足 / 价格贴近支撑阻力），宁缺毋假。' }}
                 </p>
-                <p class="muted small plr-note">PLR=(阻力w2−现价)/(现价−支撑s1)，近250日成交量加权分布峰值。与左侧基本面买点/止损是两套体系，仅作参考。</p>
+                <p class="muted small plr-note">PLR=(阻力w2−现价)/(现价−支撑s1)，近250日成交量加权分布峰值，s1 取量能最强支撑；支撑贴脸(&lt;1.5%)判为破位风险线不给数。与左侧基本面买点/止损是两套体系，仅作参考。</p>
               </template>
             </div>
           </section>
