@@ -25,7 +25,7 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Iterable
+from typing import Iterable
 
 from app.db import session
 
@@ -34,7 +34,7 @@ DEFAULT_ALERT_PCT = 10.0  # 单票占总资产超过这个百分比就变红（P
 SIDES = ("BUY", "SELL", "VOID")
 
 
-from app.exceptions import ValidationError
+from app.exceptions import ValidationError  # noqa: E402
 
 
 class PortfolioError(ValidationError):

@@ -60,3 +60,9 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP"]
 ignore = ["E501"]
+
+# algo/ 目录是指纹锁定的核心算法，不做 lint 改动
+# tests/ 目录允许更宽松的风格
+[tool.ruff.lint.per-file-ignores]
+"backend/app/algo/*.py" = ["E402", "F401", "F841", "E731", "E702", "W"]
+"backend/tests/*.py" = ["F841", "S101"]

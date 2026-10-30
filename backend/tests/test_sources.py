@@ -18,7 +18,6 @@ from app.services.sources import (
     HttpClient,
     LiveSources,
     RateLimiter,
-    SourceResult,
     change_pct,
     db_recorder,
     parse_kline,

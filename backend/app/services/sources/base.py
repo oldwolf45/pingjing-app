@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import json
 import random
 import threading
 import time
@@ -23,7 +22,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable
 
 CONCURRENCY_PER_DOMAIN = 4

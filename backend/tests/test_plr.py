@@ -3,7 +3,6 @@
 算法：近 250 根日K收盘价+成交量 → 成交量加权价格分布找支撑 s1 / 阻力 w1,w2
 → PLR = (w2 - price) / (price - s1)。与 hermes pool_scan / backtest_v5 一致。
 """
-import math
 
 from app.services.plr import compute_plr, find_peaks, plr_to_score, MIN_BARS
 

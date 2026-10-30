@@ -1,9 +1,7 @@
 """配置模块测试。"""
 
-import os
-import pytest
 
-from app.utils.config import AppSettings, _load_settings, reload_settings, settings
+from app.utils.config import AppSettings, _load_settings, settings
 
 
 def test_settings_singleton():

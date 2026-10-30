@@ -24,6 +24,7 @@ backend/data_local/
 backend/tests/fixtures/smoke_data/
 backend/tests/fixtures/selftest_data/
 backend/tests/fixtures/apidemo/
+backend/tests/fixtures/smoke_ui_data/
 backend/tests/fixtures/*.db
 backend/tests/fixtures/**/*.db-shm
 backend/tests/fixtures/**/*.db-wal

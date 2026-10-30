@@ -11,7 +11,6 @@
 """
 
 import sqlite3
-import pytest
 
 from app.db import session
 from app.db.migrations import (

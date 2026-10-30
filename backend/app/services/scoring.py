@@ -13,7 +13,6 @@ from datetime import datetime
 from typing import Any
 
 from app import legacy_bridge
-from app.db import session
 
 # 6 个维度的可读名（前端和报告共用一套，别各处自己起名）
 DIMENSIONS = (

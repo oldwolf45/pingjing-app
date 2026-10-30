@@ -54,7 +54,7 @@ sys.modules[__name__] = _MigratorModule(sys.modules[__name__])
 __all__ = [
     "CRITICAL_TABLES",
     "MIGRATION_STATE_KEY",
-    "MIGRATIONS",
+    "MIGRATIONS",  # noqa: F822 - 通过模块代理动态提供
     "TARGET_VERSION",
     "Migration",
     "MigrationInterrupted",

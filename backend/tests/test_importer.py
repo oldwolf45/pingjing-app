@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.db import session
-from app.services import backup, importer, migrator
+from app.services import importer, migrator
 
 SRC = Path("D:/云吞下载/紫苏叶跟踪")
 

@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Any
 
 from app import paths
-from app.db import session
 
 # 仓位建议上限（PRD 3.3：原始 15% 必须裁剪到 10% 并标注）
 POSITION_CAP = 10.0
@@ -414,9 +413,9 @@ def import_sector_map(conn, path: Path, report: ImportReport) -> None:
     mp = raw.get("map") or {}
     for code, val in mp.items():
         if isinstance(val, str):
-            sector, intel_key = val, None
+            sector, _intel_key = val, None
         else:
-            sector, intel_key = val.get("sector"), val.get("intel_key")
+            sector, _intel_key = val.get("sector"), val.get("intel_key")
 
         exists = conn.execute("SELECT 1 FROM stocks WHERE code=?", (code,)).fetchone()
         if not exists:
@@ -622,7 +621,8 @@ def run_full_import(conn, source_root: str | Path,
 
 def verify_import(conn) -> dict:
     """对账：返回关键指标，供测试和导入报告使用。"""
-    q = lambda sql: conn.execute(sql).fetchone()[0]
+    def q(sql):
+        return conn.execute(sql).fetchone()[0]
     dist = {r["pool"]: r["n"] for r in conn.execute(
         "SELECT pool, COUNT(*) AS n FROM pool_states GROUP BY pool").fetchall()}
     return {

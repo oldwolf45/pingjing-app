@@ -21,9 +21,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Any
 
 from app.db import session
 
@@ -45,7 +42,7 @@ JUDGE = {"version": "v1-45d-hs300", "days": 45,
 JUDGE_VERSION = JUDGE["version"]
 
 
-from app.exceptions import ValidationError
+from app.exceptions import ValidationError  # noqa: E402
 
 
 class RecommendationError(ValidationError):

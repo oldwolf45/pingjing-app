@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api import register
-from app.api.health import router as health_router
 from app.exceptions import AppError, NotFoundError, ValidationError
 
 

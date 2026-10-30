@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import date, datetime
-from typing import Any
 
 from app.db import session
 
@@ -26,7 +25,7 @@ DECISION_LABELS = {
 ACTIVE_POOLS = ("candidate", "observation", "reserve")
 
 
-from app.exceptions import ValidationError
+from app.exceptions import ValidationError  # noqa: E402
 
 
 class DecisionError(ValidationError):

@@ -19,7 +19,6 @@ from app.services.sources import SourceResult
 from app.services.updater import (
     STAGE_KEYS,
     UpdateOptions,
-    Updater,
     run_update,
     sector_heat_proxy,
 )

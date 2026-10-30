@@ -42,7 +42,7 @@ EXPORT_TABLES = (
 FORMULA_PREFIX = ("=", "+", "-", "@", "\t", "\r")
 
 
-from app.exceptions import OperationError
+from app.exceptions import OperationError  # noqa: E402
 
 
 class ExportError(OperationError):

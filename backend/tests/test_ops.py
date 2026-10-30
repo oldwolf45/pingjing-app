@@ -9,9 +9,7 @@ from pathlib import Path
 import pytest
 
 from app.services import exporter
-from app.services import manual_entry
 from app.services import source_health as sh
-from app.services.sources import SourceResult
 
 
 def call(conn, source, ok, latency=100, error=None, capability="行情", code="301095"):
