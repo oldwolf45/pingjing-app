@@ -45,7 +45,10 @@ JUDGE = {"version": "v1-45d-hs300", "days": 45,
 JUDGE_VERSION = JUDGE["version"]
 
 
-class RecommendationError(ValueError):
+from app.exceptions import ValidationError
+
+
+class RecommendationError(ValidationError):
     pass
 
 

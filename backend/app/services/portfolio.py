@@ -34,7 +34,10 @@ DEFAULT_ALERT_PCT = 10.0  # 单票占总资产超过这个百分比就变红（P
 SIDES = ("BUY", "SELL", "VOID")
 
 
-class PortfolioError(ValueError):
+from app.exceptions import ValidationError
+
+
+class PortfolioError(ValidationError):
     """交易不合规。带一句给用户看的中文。"""
 
 

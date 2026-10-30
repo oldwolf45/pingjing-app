@@ -26,7 +26,10 @@ DECISION_LABELS = {
 ACTIVE_POOLS = ("candidate", "observation", "reserve")
 
 
-class DecisionError(ValueError):
+from app.exceptions import ValidationError
+
+
+class DecisionError(ValidationError):
     pass
 
 

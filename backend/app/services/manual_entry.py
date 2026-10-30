@@ -18,7 +18,10 @@ from app.db import session
 from app.services import pool_rules
 
 
-class ManualEntryError(ValueError):
+from app.exceptions import ValidationError
+
+
+class ManualEntryError(ValidationError):
     """人工添加被拒绝（重复、参数不对等）。"""
 
 
