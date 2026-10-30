@@ -1,101 +1,159 @@
 <template>
-  <div class="stack">
-    <section class="card">
-      <div class="card-head">
-        <h2>数据位置</h2>
-        <span class="hint">都在你自己的电脑上</span>
-      </div>
-      <div class="card-body">
-        <div class="row" v-for="(label, key) in folders" :key="key">
-          <span class="k">{{ label }}</span>
-          <code class="path">{{ paths[key] || '—' }}</code>
-          <button class="btn sm" @click="openFolder(key)">打开</button>
+  <div class="settings-page">
+    <!-- 数据位置 -->
+    <el-card shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span class="title">数据位置</span>
+          <span class="subtitle">都在你自己的电脑上</span>
         </div>
-        <p class="promise">
-          {{ privacy.text }}
-        </p>
-      </div>
-    </section>
+      </template>
+      <el-descriptions :column="1" border>
+        <el-descriptions-item v-for="(label, key) in folders" :key="key" :label="label">
+          <template #default>
+            <div class="path-row">
+              <code class="path">{{ paths[key] || '—' }}</code>
+              <el-button size="small" @click="openFolder(key)">打开</el-button>
+            </div>
+          </template>
+        </el-descriptions-item>
+      </el-descriptions>
+      <el-alert
+        :title="privacy.text"
+        type="success"
+        :closable="false"
+        show-icon
+        style="margin-top: 14px"
+      />
+    </el-card>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>备份与恢复</h2>
-        <div class="spacer"></div>
-        <button class="btn primary sm" :disabled="busy" @click="doBackup">立即备份</button>
-      </div>
-      <div class="card-body">
-        <p v-if="msg" class="ok-text">{{ msg }}</p>
-        <p v-if="error" class="err">{{ error }}</p>
-        <div v-if="!backups.length" class="empty">还没有备份。建议每次跑完更新备份一次。</div>
-        <table v-else class="tbl">
-          <thead>
-            <tr>
-              <th>备份 ID</th>
-              <th>类型</th>
-              <th>时间</th>
-              <th class="r">大小</th>
-              <th>校验</th>
-              <th style="width: 84px">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="b in backups" :key="b.id">
-              <td class="num small">{{ b.id }}</td>
-              <td>{{ kindLabel(b.kind) }}</td>
-              <td class="num">{{ fmtTime(b.created_at) }}</td>
-              <td class="r num">{{ kb(b.size) }}</td>
-              <td>
-                <span v-if="b.verified" class="ok-text">通过</span>
-                <span v-else class="err">未通过</span>
-              </td>
-              <td>
-                <button class="btn sm" :disabled="busy || !b.verified" @click="doRestore(b)">
-                  恢复
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="card-head">
-        <h2>导出</h2>
-        <span class="hint">JSON 给备份，CSV 给 Excel</span>
-      </div>
-      <div class="card-body">
-        <div class="btns">
-          <button class="btn sm" :disabled="busy" @click="doExport('json')">导出 JSON</button>
-          <button class="btn sm" :disabled="busy" @click="doExport('csv')">导出 CSV</button>
+    <!-- 备份与恢复 -->
+    <el-card shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span class="title">备份与恢复</span>
+          <el-button type="primary" size="small" :loading="busy" @click="doBackup">
+            立即备份
+          </el-button>
         </div>
-        <p v-if="exportMsg" class="ok-text">{{ exportMsg }}</p>
-      </div>
-    </section>
+      </template>
 
-    <section class="card">
-      <div class="card-head"><h2>版本</h2></div>
-      <div class="card-body">
-        <div class="row"><span class="k">程序</span><code class="path">v{{ versions.app }}</code></div>
-        <div class="row">
-          <span class="k">数据库结构</span>
-          <code class="path">v{{ versions.schema }}（目标 v{{ versions.schemaTarget }}）</code>
+      <el-table :data="backups" stripe size="default" empty-text="">
+        <template #empty>
+          <el-empty description="还没有备份。建议每次跑完更新备份一次。" :image-size="80" />
+        </template>
+        <el-table-column prop="id" label="备份 ID" width="100">
+          <template #default="{ row }">
+            <span class="num muted small">{{ row.id }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="类型" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain">{{ kindLabel(row.kind) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="时间" width="170">
+          <template #default="{ row }">
+            <span class="num">{{ fmtTime(row.created_at) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="大小" width="100" align="right">
+          <template #default="{ row }">
+            <span class="num">{{ kb(row.size) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="校验" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.verified" type="success" size="small" effect="light">通过</el-tag>
+            <el-tag v-else type="danger" size="small" effect="light">未通过</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="80" align="center">
+          <template #default="{ row }">
+            <el-button
+              type="primary"
+              link
+              size="small"
+              :disabled="busy || !row.verified"
+              @click="doRestore(row)"
+            >
+              恢复
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <!-- 导出 -->
+    <el-card shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span class="title">导出</span>
+          <span class="subtitle">JSON 给备份，CSV 给 Excel</span>
         </div>
-        <div class="row"><span class="k">算法</span><code class="path">{{ versions.algo }}</code></div>
+      </template>
+      <div class="export-btns">
+        <el-button :loading="busy" @click="doExport('json')">导出 JSON</el-button>
+        <el-button :loading="busy" @click="doExport('csv')">导出 CSV</el-button>
       </div>
-    </section>
+      <el-alert
+        v-if="exportMsg"
+        :title="exportMsg"
+        type="success"
+        :closable="false"
+        show-icon
+      />
+    </el-card>
+
+    <!-- 外观 -->
+    <el-card shadow="never">
+      <template #header>
+        <span class="title">外观</span>
+      </template>
+      <div class="theme-row">
+        <span class="label">主题</span>
+        <el-radio-group v-model="theme" size="default">
+          <el-radio-button value="light">浅色</el-radio-button>
+          <el-radio-button value="dark">深色</el-radio-button>
+          <el-radio-button value="auto">跟随系统</el-radio-button>
+        </el-radio-group>
+      </div>
+    </el-card>
+
+    <!-- 版本 -->
+    <el-card shadow="never">
+      <template #header>
+        <span class="title">版本</span>
+      </template>
+      <el-descriptions :column="1" border size="default">
+        <el-descriptions-item label="程序">
+          <code>v{{ versions.app }}</code>
+        </el-descriptions-item>
+        <el-descriptions-item label="数据库结构">
+          <code>v{{ versions.schema }}（目标 v{{ versions.schemaTarget }}）</code>
+        </el-descriptions-item>
+        <el-descriptions-item label="算法">
+          <code>{{ versions.algo }}</code>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
   </div>
 </template>
 
 <script setup>
-// T5.8 设置页：数据目录 / 备份恢复 / 版本 / 明文写数据保护承诺。
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '../api/client.js'
+import { getTheme, setTheme } from '../utils/theme.js'
+
+const theme = ref(getTheme())
+
+watch(theme, (val) => {
+  setTheme(val)
+})
 
 const data = ref({ versions: {}, backups: [], privacy: {} })
 const busy = ref(false)
-const msg = ref('')
-const error = ref('')
 const exportMsg = ref('')
 
 const versions = computed(() => data.value.versions || {})
@@ -117,65 +175,65 @@ function kb(n) {
   if (!n) return '—'
   return n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`
 }
-function fmtTime(s) {
-  return String(s || '').replace('T', ' ').slice(0, 19)
-}
+function fmtTime(s) { return String(s || '').replace('T', ' ').slice(0, 19) }
 
 async function load() {
   try {
     data.value = await api.settings()
   } catch (e) {
-    error.value = `读取失败：${e.message}`
+    ElMessage.error(`读取失败：${e.message}`)
   }
 }
 
 async function openFolder(which) {
   try {
     const r = await api.openFolder(which)
-    if (!r.ok) error.value = `打不开：${r.error || '仅桌面版支持'}`
+    if (!r.ok) ElMessage.error(`打不开：${r.error || '仅桌面版支持'}`)
   } catch (e) {
-    error.value = e.message
+    ElMessage.error(e.message)
   }
 }
 
 async function doBackup() {
   busy.value = true
-  msg.value = ''
-  error.value = ''
   try {
     const b = await api.backup()
-    msg.value = `备份完成：${b.id}`
+    ElMessage.success(`备份完成：${b.id}`)
     await load()
   } catch (e) {
-    error.value = `备份失败：${e.message}`
+    ElMessage.error(`备份失败：${e.message}`)
   } finally {
     busy.value = false
   }
 }
 
 async function doRestore(b) {
-  if (!window.confirm(`从备份 ${b.id} 恢复？当前数据会被覆盖。`)) return
+  try {
+    await ElMessageBox.confirm(
+      `从备份 ${b.id} 恢复？当前数据会被覆盖。`,
+      '确认恢复',
+      { type: 'warning', confirmButtonText: '确认恢复', cancelButtonText: '取消' }
+    )
+  } catch { return }
   busy.value = true
-  msg.value = ''
-  error.value = ''
   try {
     await api.restore({ id: b.id })
-    msg.value = `已恢复到 ${b.id}`
+    ElMessage.success(`已恢复到 ${b.id}`)
     await load()
   } catch (e) {
-    error.value = `恢复失败：${e.message}`
+    ElMessage.error(`恢复失败：${e.message}`)
   } finally {
     busy.value = false
   }
 }
 
 async function doExport(fmt) {
-  exportMsg.value = ''
   try {
     const r = await api.exportData(fmt)
     exportMsg.value = `已导出到 ${r.path}`
+    ElMessage.success('导出成功')
   } catch (e) {
-    error.value = `导出失败：${e.message}`
+    ElMessage.error(`导出失败：${e.message}`)
   }
 }
 
@@ -183,31 +241,52 @@ onMounted(load)
 </script>
 
 <style scoped>
-.stack { display: flex; flex-direction: column; gap: 14px; }
-.row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
-.row .k { width: 90px; color: var(--fg-3); font-size: 12px; flex: 0 0 auto; }
+.settings-page { display: flex; flex-direction: column; gap: 16px; }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-header .title { font-weight: 600; font-size: 14px; }
+.card-header .subtitle { font-size: 12px; color: var(--text-tertiary); }
+
+.path-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .path {
   flex: 1;
-  font-size: 11px;
+  font-size: 12px;
   background: #f6f7f9;
-  border: 1px solid var(--line);
+  border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 3px 7px;
+  padding: 4px 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: 'SF Mono', Monaco, monospace;
 }
-.r { text-align: right; }
-.btns { display: flex; gap: 8px; }
-.promise {
-  margin: 12px 0 0;
-  padding: 9px 12px;
-  background: var(--purple-soft);
-  color: var(--purple);
-  border-radius: 5px;
-  font-size: 12px;
-  line-height: 1.7;
+
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-tertiary); }
+.small { font-size: 11.5px; }
+
+.export-btns {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
 }
-.err { color: var(--red); font-size: 12px; }
-.ok-text { color: var(--green); font-size: 12px; }
+
+.theme-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.theme-row .label {
+  min-width: 60px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
 </style>

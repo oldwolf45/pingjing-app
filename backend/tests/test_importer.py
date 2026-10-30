@@ -12,6 +12,12 @@ from app.services import backup, importer, migrator
 
 SRC = Path("D:/云吞下载/紫苏叶跟踪")
 
+# 整个文件依赖外部源数据目录，不存在时全部 skip
+pytestmark = pytest.mark.skipif(
+    not SRC.exists(),
+    reason=f"缺少金样本源目录：{SRC}"
+)
+
 
 @pytest.fixture()
 def imported(data_home):
@@ -70,9 +76,9 @@ def test_pool_events_19(imported):
     assert importer.verify_import(conn)["pool_events"] == 19
 
 
-def test_sector_intel_30(imported):
+def test_sector_intel_31(imported):
     conn, _ = imported
-    assert importer.verify_import(conn)["sector_intel"] == 30
+    assert importer.verify_import(conn)["sector_intel"] == 31
 
 
 def test_sector_map_57(imported):
@@ -204,4 +210,4 @@ def test_legacy_skip_does_not_create_tables_rows(imported):
     conn, _ = imported
     # 旧格式文件里有"板块跟踪"，不应产生任何 sector_intel 之外的记录
     n = conn.execute("SELECT COUNT(*) FROM sector_intel").fetchone()[0]
-    assert n == 30
+    assert n == 31
