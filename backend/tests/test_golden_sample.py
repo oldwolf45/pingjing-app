@@ -248,6 +248,7 @@ def test_path_assertion_rejects_outside(monkeypatch, data_home):
 # 评分落库
 # ==================================================================
 
+@has_source
 def test_persist_snapshot_writes_all_dimensions(conn):
     conn.execute("INSERT OR IGNORE INTO stocks(code, name) VALUES ('600519','贵州茅台')")
     conn.commit()
@@ -266,6 +267,7 @@ def test_persist_snapshot_writes_all_dimensions(conn):
     assert json.loads(row["financial"])["gross_margin"] == pytest.approx(89.56)
 
 
+@has_source
 def test_persist_appends_not_overwrites(conn):
     conn.execute("INSERT OR IGNORE INTO stocks(code, name) VALUES ('600519','贵州茅台')")
     conn.commit()
