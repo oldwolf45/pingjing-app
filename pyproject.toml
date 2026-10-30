@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zisuye"
-version = "0.1.0"
+version = "0.2.2"
 description = "紫苏叶策略 APP — 基于瓶颈理论的A股选股跟踪系统"
 readme = "README.md"
 license = { text = "MIT" }

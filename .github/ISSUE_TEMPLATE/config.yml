@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 项目文档
+    url: https://github.com/your-org/zisuye-app#readme
+    about: 先看看文档里有没有答案
+  - name: 已知问题
+    url: https://github.com/your-org/zisuye-app/issues
+    about: 搜一下是不是已经有人提过了

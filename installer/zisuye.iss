@@ -1,15 +1,15 @@
 ; 紫苏叶策略 · Inno Setup 脚本（正式发版用）
 ;
 ; 构建机上跑：
-;   ISCC.exe installer\zisuye.iss /DAppVersion=0.1.0
-; 产物：installer\out\紫苏叶策略_Setup_0.1.0.exe
+;   ISCC.exe installer\zisuye.iss /DAppVersion=0.2.0
+; 产物：installer\out\紫苏叶策略_Setup_0.2.0.exe
 ;
 ; 为什么数据目录不在安装目录下：Program Files 普通用户没写权限，
 ; 而且 SQLite 的 WAL 在 OneDrive 同步盘上会损坏。数据一律放 %LOCALAPPDATA%\ZiSuYe，
 ; 卸载时**不删**（PRD 验收第 3 条：卸载后重装数据一条不少）。
 
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.2.2"
 #endif
 
 #define AppName "紫苏叶策略"
