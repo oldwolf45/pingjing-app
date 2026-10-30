@@ -161,7 +161,10 @@ def init_schema(conn: sqlite3.Connection | None = None) -> None:
 
 def meta_get(key: str, default: str | None = None, conn: sqlite3.Connection | None = None) -> str | None:
     c = conn or get_conn()
-    row = c.execute("SELECT value FROM app_meta WHERE key=?", (key,)).fetchone()
+    try:
+        row = c.execute("SELECT value FROM app_meta WHERE key=?", (key,)).fetchone()
+    except sqlite3.OperationalError:
+        return default
     return row["value"] if row else default
 
 

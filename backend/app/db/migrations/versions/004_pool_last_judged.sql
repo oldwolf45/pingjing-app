@@ -1,0 +1,11 @@
+-- 紫苏叶策略 APP · 数据库迁移 v004
+-- 版本：4
+-- 名称：004_pool_last_judged
+-- 说明：pool_states 表补 last_judged_at 列
+-- 背景：这一列是做到「池子判定」那一步才加的，直接写进了 schema.sql，
+--       导致老库升上来以后 load_state() 一查就报 no such column。
+--       列已经在了就跳过（全新安装走 001_init.sql 时就是这样）。
+
+-- SQLite 没有 ALTER TABLE ADD COLUMN IF NOT EXISTS，
+-- 用程序化方式判断（迁移引擎里用 Python 读 PRAGMA table_info 判断）。
+-- 本文件仅作为文档记录，实际执行由 migrator 的 _m004() 完成。
