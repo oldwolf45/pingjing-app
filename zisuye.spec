@@ -76,6 +76,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=str(ROOT / "installer" / "zisuye.ico"),
     version=str(ROOT / "installer" / "version_info.txt"),
 )
 

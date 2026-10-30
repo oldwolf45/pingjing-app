@@ -1,139 +1,200 @@
 <template>
-  <div class="stack">
-    <section class="card">
-      <div class="card-head">
-        <h2>推荐追踪</h2>
-        <span class="hint">快照只追加 · 三档分开算</span>
-      </div>
-      <div class="card-body">
-        <div class="cards">
-          <div class="stat">
-            <div class="k">累计推荐</div>
-            <div class="v">{{ stats.total ?? 0 }}</div>
-            <div class="n">每一条都留了当时的评分和价格</div>
-          </div>
-          <div v-for="t in tierList" :key="t.key" class="stat" :class="t.key">
-            <div class="k">{{ t.label }}</div>
-            <div class="v">
-              <template v-if="t.sampleEnough">{{ t.rate }}<span class="pct">%</span></template>
+  <div class="rec-page">
+    <!-- 统计卡片 -->
+    <el-card shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span class="title">推荐追踪</span>
+          <span class="subtitle">快照只追加 · 三档分开算</span>
+        </div>
+      </template>
+
+      <el-row :gutter="12" class="stats-row">
+        <el-col :sm="12" :md="6" :span="24">
+          <el-card shadow="hover" class="stat-card">
+            <div class="stat-label">累计推荐</div>
+            <div class="stat-value">{{ stats.total ?? 0 }}</div>
+            <div class="stat-note">每一条都留了当时的评分和价格</div>
+          </el-card>
+        </el-col>
+        <el-col v-for="t in tierList" :key="t.key" :sm="12" :md="6" :span="24">
+          <el-card shadow="hover" class="stat-card" :class="`tier-${t.key}`">
+            <div class="stat-label">{{ t.label }}</div>
+            <div class="stat-value">
+              <template v-if="t.sampleEnough">
+                {{ t.rate }}<span class="pct">%</span>
+              </template>
               <template v-else>—</template>
             </div>
-            <div class="n">
+            <div class="stat-note">
               <template v-if="t.sampleEnough">{{ t.hit }} / {{ t.evaluated }} 条命中</template>
               <template v-else>{{ t.sampleNote }}</template>
             </div>
-            <div class="hintline">{{ t.hint }}</div>
-          </div>
-        </div>
+            <div class="stat-hint">{{ t.hint }}</div>
+          </el-card>
+        </el-col>
+      </el-row>
 
-        <p class="lead">
-          三档统计永远分开：看错方向（硬失误）、方向对但没赚（到期不赚）、
-          赚了但没跑赢大盘（跑输大盘），要改的东西完全不同，合成一个"成功率"等于什么都没说。
-        </p>
-        <p v-if="error" class="err">{{ error }}</p>
-      </div>
-    </section>
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        class="lead-alert"
+      >
+        <template #title>
+          三档统计永远分开：看错方向（硬失误）、方向对但没赚（到期不赚）、赚了但没跑赢大盘（跑输大盘），要改的东西完全不同，合成一个"成功率"等于什么都没说。
+        </template>
+      </el-alert>
+    </el-card>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>推荐记录</h2>
-        <span class="hint">{{ items.length }} 条</span>
-      </div>
-      <div class="card-body">
-        <div v-if="!items.length" class="empty">
-          还没有推荐记录。在个股详情页点「记一条推荐」，就会留一张当时的快照。
+    <!-- 推荐记录 -->
+    <el-card shadow="never">
+      <template #header>
+        <div class="card-header">
+          <span class="title">推荐记录</span>
+          <span class="subtitle">{{ items.length }} 条</span>
         </div>
-        <table v-else class="tbl">
-          <thead>
-            <tr>
-              <th style="width: 96px">日期</th>
-              <th style="width: 82px">代码</th>
-              <th>名称</th>
-              <th class="r">推荐时分数</th>
-              <th class="r">推荐价</th>
-              <th class="r">最新价</th>
-              <th class="r">涨跌</th>
-              <th>三档判定</th>
-              <th style="width: 60px"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="r in items" :key="r.id">
-              <tr>
-                <td class="num">{{ r.as_of_date }}</td>
-                <td class="num">{{ r.code }}</td>
-                <td>{{ r.stockName || r.name }}</td>
-                <td class="r num">{{ r.total_score === null ? '—' : r.total_score.toFixed(2) }}</td>
-                <td class="r num">{{ r.price_cents ? (r.price_cents / 100).toFixed(2) : '—' }}</td>
-                <td class="r num">{{ lastPrice(r) }}</td>
-                <td class="r num" :class="pnlClass(lastPct(r))">{{ lastPct(r) === null ? '—' : lastPct(r) + '%' }}</td>
-                <td>
-                  <span v-for="t in tierList" :key="t.key" class="vd" :class="verdictClass(r, t.key)">
-                    {{ t.label }}·{{ verdictText(r, t.key) }}
-                  </span>
-                </td>
-                <td>
-                  <button class="btn sm" @click="toggle(r.id)">
-                    {{ opened.has(r.id) ? '收起' : '展开' }}
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="opened.has(r.id)" class="detail-row">
-                <td colspan="9">
-                  <div class="detail">
-                    <div>
-                      <div class="dt">当时快照</div>
-                      <pre>{{ pretty(r.snapshotDecoded) }}</pre>
-                    </div>
-                    <div>
-                      <div class="dt">跟踪曲线（{{ (r.tracks || []).length }} 个点）</div>
-                      <div v-if="!(r.tracks || []).length" class="small muted">还没有跟踪数据，跑一次更新会补</div>
-                      <ul v-else class="trackline">
-                        <li v-for="t in r.tracks" :key="t.id">
-                          <span class="num">{{ t.as_of_date }}</span>
-                          <span class="num">{{ t.price_cents ? (t.price_cents / 100).toFixed(2) : '—' }}</span>
-                          <span class="num" :class="pnlClass(t.pct_change)">{{ t.pct_change === null ? '—' : t.pct_change + '%' }}</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </section>
+      </template>
 
-    <section class="card">
-      <div class="card-head"><h2>还不能画的图</h2></div>
-      <div class="card-body">
-        <div class="cards">
-          <div class="stat muted-card">
-            <div class="k">命中率按评分档位</div>
-            <div class="v">—</div>
-            <div class="n">{{ stats.byScoreBand?.note || '样本够了才能画' }}</div>
-          </div>
-          <div class="stat muted-card">
-            <div class="k">维度归因</div>
-            <div class="v">—</div>
-            <div class="n">{{ stats.byDimension?.note || '样本够了才能画' }}</div>
-          </div>
-        </div>
-      </div>
-    </section>
+      <el-table
+        :data="items"
+        stripe
+        size="default"
+        empty-text=""
+      >
+        <template #empty>
+          <el-empty
+            description="还没有推荐记录。在个股详情页点「记一条推荐」，就会留一张当时的快照。"
+            :image-size="80"
+          />
+        </template>
+
+        <el-table-column type="expand">
+          <template #default="{ row }">
+            <div class="expand-detail">
+              <div class="detail-block">
+                <div class="dt">当时快照</div>
+                <pre>{{ pretty(row.snapshotDecoded) }}</pre>
+              </div>
+              <div class="detail-block">
+                <div class="dt">跟踪曲线（{{ (row.tracks || []).length }} 个点）</div>
+                <div v-if="!(row.tracks || []).length" class="muted small">还没有跟踪数据，跑一次更新会补</div>
+                <el-table v-else :data="row.tracks" size="small" border style="max-width: 360px">
+                  <el-table-column prop="as_of_date" label="日期" width="100">
+                    <template #default="{ row: t }">
+                      <span class="num">{{ t.as_of_date }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="价格" width="80" align="right">
+                    <template #default="{ row: t }">
+                      <span class="num">{{ t.price_cents ? (t.price_cents / 100).toFixed(2) : '—' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="涨跌" width="80" align="right">
+                    <template #default="{ row: t }">
+                      <span class="num" :class="pnlClass(t.pct_change)">
+                        {{ t.pct_change === null ? '—' : t.pct_change + '%' }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="as_of_date" label="日期" width="100">
+          <template #default="{ row }">
+            <span class="num">{{ row.as_of_date }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="code" label="代码" width="75">
+          <template #default="{ row }">
+            <span class="num muted">{{ row.code }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="name" label="名称" min-width="100">
+          <template #default="{ row }">{{ row.stockName || row.name }}</template>
+        </el-table-column>
+
+        <el-table-column label="推荐时分数" width="100" align="right">
+          <template #default="{ row }">
+            <span class="num">
+              {{ row.total_score === null ? '—' : row.total_score.toFixed(2) }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="推荐价" width="90" align="right">
+          <template #default="{ row }">
+            <span class="num">{{ row.price_cents ? (row.price_cents / 100).toFixed(2) : '—' }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="最新价" width="90" align="right">
+          <template #default="{ row }">
+            <span class="num">{{ lastPrice(row) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="涨跌" width="80" align="right">
+          <template #default="{ row }">
+            <span class="num" :class="pnlClass(lastPct(row))">
+              {{ lastPct(row) === null ? '—' : lastPct(row) + '%' }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="三档判定" min-width="240">
+          <template #default="{ row }">
+            <el-tag
+              v-for="t in tierList"
+              :key="t.key"
+              size="small"
+              effect="plain"
+              :type="verdictTagType(row, t.key)"
+              style="margin-right: 4px"
+            >
+              {{ t.label }}·{{ verdictText(row, t.key) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <!-- 还不能画的图 -->
+    <el-card shadow="never">
+      <template #header>
+        <span class="title">还不能画的图</span>
+      </template>
+      <el-row :gutter="12">
+        <el-col :sm="12" :span="24" style="margin-bottom: 12px">
+          <el-card class="stat-card muted-card" shadow="never">
+            <div class="stat-label">命中率按评分档位</div>
+            <div class="stat-value">—</div>
+            <div class="stat-note">{{ stats.byScoreBand?.note || '样本够了才能画' }}</div>
+          </el-card>
+        </el-col>
+        <el-col :sm="12" :span="24" style="margin-bottom: 12px">
+          <el-card class="stat-card muted-card" shadow="never">
+            <div class="stat-label">维度归因</div>
+            <div class="stat-value">—</div>
+            <div class="stat-note">{{ stats.byDimension?.note || '样本够了才能画' }}</div>
+          </el-card>
+        </el-col>
+      </el-row>
+    </el-card>
   </div>
 </template>
 
 <script setup>
-// T5.5 / T5.6。硬规则：三档分开统计，样本 <10 一律显示「—」，不推算。
 import { computed, onMounted, ref } from 'vue'
 import { api } from '../api/client.js'
 
 const stats = ref({ total: 0, tiers: {}, byScoreBand: {}, byDimension: {} })
 const items = ref([])
-const opened = ref(new Set())
-const error = ref('')
 
 const tierList = computed(() => ['hard_miss', 'flat', 'lag_benchmark'].map((k) => ({
   key: k,
@@ -171,15 +232,9 @@ function verdictText(r, tier) {
   const v = r.evaluations?.[tier]?.verdict
   return { hit: '命中', miss: '未命中', pending: '待定' }[v] || '待定'
 }
-function verdictClass(r, tier) {
+function verdictTagType(r, tier) {
   const v = r.evaluations?.[tier]?.verdict
-  return { hit: 'hit', miss: 'miss', pending: 'pending' }[v] || 'pending'
-}
-function toggle(id) {
-  const s = new Set(opened.value)
-  if (s.has(id)) s.delete(id)
-  else s.add(id)
-  opened.value = s
+  return { hit: 'danger', miss: 'success', pending: 'info' }[v] || 'info'
 }
 
 async function load() {
@@ -188,7 +243,7 @@ async function load() {
     items.value = d.items || []
     stats.value = d.stats || stats.value
   } catch (e) {
-    error.value = `读取失败：${e.message}`
+    // 错误由 toast 处理
   }
 }
 
@@ -196,58 +251,77 @@ onMounted(load)
 </script>
 
 <style scoped>
-.stack { display: flex; flex-direction: column; gap: 14px; }
-.cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-.stat {
-  flex: 1 1 160px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 10px 12px;
-  background: #fcfcfd;
+.rec-page { display: flex; flex-direction: column; gap: 16px; }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
-.stat .k { font-size: 11px; color: var(--fg-3); }
-.stat .v { font-size: 22px; font-weight: 600; line-height: 1.3; }
-.stat .pct { font-size: 12px; font-weight: 400; margin-left: 1px; }
-.stat .n { font-size: 11px; color: var(--fg-2); }
-.stat .hintline { font-size: 10px; color: var(--fg-3); margin-top: 3px; }
-.stat.hard_miss .v { color: var(--red); }
-.stat.flat .v { color: var(--amber); }
-.stat.lag_benchmark .v { color: var(--purple); }
-.muted-card { opacity: 0.75; background: repeating-linear-gradient(
-  45deg, #fafafa, #fafafa 6px, #f2f3f5 6px, #f2f3f5 12px); }
+.card-header .title { font-weight: 600; font-size: 14px; }
+.card-header .subtitle { font-size: 12px; color: var(--text-tertiary); }
 
-.lead { font-size: 12px; color: var(--fg-2); margin: 4px 0 0; line-height: 1.7; }
-.err { color: var(--red); font-size: 12px; }
-.r { text-align: right; }
-.up { color: var(--red); }
-.down { color: var(--green); }
+.stats-row { margin-bottom: 12px; }
 
-.vd {
-  display: inline-block;
-  font-size: 10px;
-  border-radius: 3px;
-  padding: 1px 4px;
-  margin-right: 4px;
-  border: 1px solid transparent;
+.stat-card {
+  border-radius: 10px;
+  transition: all 0.2s;
 }
-.vd.hit { background: #fdecea; color: var(--red); }
-.vd.miss { background: #eaf6ee; color: var(--green); }
-.vd.pending { background: #f2f3f5; color: var(--fg-3); }
+.stat-card :deep(.el-card__body) {
+  padding: 16px;
+}
+.stat-label { font-size: 12px; color: var(--text-tertiary); }
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 4px 0;
+  color: var(--text-primary);
+}
+.stat-value .pct {
+  font-size: 13px;
+  font-weight: 400;
+  margin-left: 2px;
+  color: var(--text-tertiary);
+}
+.stat-note { font-size: 11.5px; color: var(--text-secondary); }
+.stat-hint { font-size: 10.5px; color: var(--text-tertiary); margin-top: 4px; }
 
-.detail-row td { background: #fafbfc; }
-.detail { display: flex; gap: 20px; }
-.detail > div { flex: 1; min-width: 0; }
-.dt { font-size: 11px; color: var(--fg-3); margin-bottom: 4px; }
+.tier-hard_miss .stat-value { color: var(--danger); }
+.tier-flat .stat-value { color: var(--warning); }
+.tier-lag_benchmark .stat-value { color: var(--primary); }
+
+.muted-card {
+  opacity: 0.7;
+  background: repeating-linear-gradient(
+    45deg, #fafafa, #fafafa 6px, #f2f3f5 6px, #f2f3f5 12px
+  ) !important;
+}
+
+.lead-alert { margin-top: 4px; }
+
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-tertiary); }
+.small { font-size: 11.5px; }
+.up { color: var(--danger); }
+.down { color: var(--success); }
+
+.expand-detail {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.detail-block { flex: 1; min-width: 280px; }
+.dt { font-size: 11.5px; color: var(--text-tertiary); margin-bottom: 6px; font-weight: 500; }
 pre {
   margin: 0;
   font-size: 11px;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 8px;
-  max-height: 190px;
+  background: #fafbfc;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  max-height: 220px;
   overflow: auto;
+  line-height: 1.6;
 }
-.trackline { list-style: none; margin: 0; padding: 0; font-size: 12px; }
-.trackline li { display: flex; gap: 16px; padding: 2px 0; }
 </style>

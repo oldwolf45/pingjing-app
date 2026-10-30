@@ -70,6 +70,7 @@ def stock_plr(code: str) -> dict:
     result = plr_algo.compute_plr(klines or [], price)
     result["code"] = code
     result["price"] = price
+    result["ref_score"] = plr_algo.plr_to_score(result)  # 0~1 参考分，不计入评分引擎
     result["data_ok"] = bool(q.ok and kl.ok and price is not None)
     if not q.ok:
         result["error"] = f"行情源失败：{q.error}"

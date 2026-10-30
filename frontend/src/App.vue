@@ -1,76 +1,101 @@
 <template>
-  <div class="shell">
-    <aside class="sidebar">
+  <el-container class="shell">
+    <el-aside width="210px" class="sidebar">
       <div class="brand">
         <div class="name">紫苏叶</div>
         <div class="sub">策略跟踪</div>
       </div>
-      <nav class="nav">
-        <button
+
+      <el-menu
+        :default-active="activeMenu"
+        class="nav-menu"
+        background-color="transparent"
+        text-color="var(--text-secondary)"
+        active-text-color="var(--primary)"
+        @select="onMenuSelect"
+      >
+        <el-menu-item
           v-for="r in navItems"
           :key="r.path"
-          class="nav-item"
-          :class="{ active: isActive(r) }"
-          @click="go(r.path)"
+          :index="r.path"
         >
-          <span class="ico">{{ r.meta.icon }}</span>
-          <span>{{ r.meta.title }}</span>
-        </button>
-      </nav>
-      <div class="sidebar-foot">
-        <div><span class="dot" :class="dbOk ? 'ok' : 'bad'"></span>{{ dbOk ? '数据库已连接' : '数据库未连接' }}</div>
-        <div>{{ version }}</div>
-      </div>
-    </aside>
+          <el-icon class="nav-ico"><component :is="iconOf(r.path)" /></el-icon>
+          <template #title>{{ r.meta.title }}</template>
+        </el-menu-item>
+      </el-menu>
 
-    <div class="main">
-      <header class="topbar">
-        <div class="search-box">
-          <span class="mag">⌕</span>
-          <input
+      <div class="sidebar-foot">
+        <el-tag :type="dbOk ? 'success' : 'danger'" size="small" effect="plain" round>
+          {{ dbOk ? '数据库已连接' : '数据库未连接' }}
+        </el-tag>
+        <div class="ver">{{ version }}</div>
+      </div>
+    </el-aside>
+
+    <el-container>
+      <el-header class="topbar">
+        <div class="search-wrap">
+          <el-autocomplete
             v-model="keyword"
+            :fetch-suggestions="querySearch"
             placeholder="搜索代码 / 名称 / 赛道"
-            @input="onSearch"
-            @focus="onSearch"
-            @keydown.enter="jumpFirst"
-            @keydown.esc="closeSearch"
-          />
-          <div v-if="showPop" class="search-pop">
-            <button v-for="it in results" :key="it.code" @click="openStock(it.code)">
-              <span class="code">{{ it.code }}</span>
-              <span>{{ it.name }}</span>
-              <span v-if="it.pool_label" class="pill" :class="poolClass(it.pool)">{{ it.pool_label }}</span>
-            </button>
-            <div v-if="!results.length" class="empty">没有匹配的票</div>
-          </div>
+            size="default"
+            clearable
+            style="width: 360px"
+            @select="onSelectResult"
+          >
+            <template #default="{ item }">
+              <div class="search-result-item">
+                <span class="code">{{ item.code }}</span>
+                <span class="nm">{{ item.name }}</span>
+                <el-tag v-if="item.pool_label" size="small" :type="poolTagType(item.pool)" effect="plain">
+                  {{ item.pool_label }}
+                </el-tag>
+              </div>
+            </template>
+          </el-autocomplete>
         </div>
 
         <div class="spacer"></div>
 
-        <div class="freshness">
-          <span class="tag" :class="{ stale: freshness.stale }">{{ freshnessText }}</span>
-        </div>
+        <el-tag
+          :type="freshness.stale ? 'warning' : 'info'"
+          size="small"
+          effect="plain"
+          round
+        >
+          {{ freshnessText }}
+        </el-tag>
 
-        <button class="btn primary" :disabled="updating" @click="onUpdate">
+        <el-button type="primary" :loading="updating" @click="onUpdate">
           {{ updating ? '更新中…' : '更新数据' }}
-        </button>
-      </header>
+        </el-button>
+      </el-header>
 
-      <main class="content">
+      <el-main class="content">
         <router-view />
-      </main>
-    </div>
+      </el-main>
+    </el-container>
 
     <UpdatePanel ref="updatePanel" @done="onUpdateDone" />
-  </div>
+  </el-container>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { onMounted, onUnmounted, ref, computed, markRaw } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { api, POOL_LABELS, poolClass } from './api/client.js'
+import { api, POOL_LABELS } from './api/client.js'
 import { routes } from './router.js'
 import UpdatePanel from './components/UpdatePanel.vue'
+import {
+  DataAnalysis,
+  Grid,
+  EditPen,
+  Money,
+  Star,
+  Connection,
+  Setting,
+} from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -80,79 +105,87 @@ const version = ref('v0.1.0')
 const dbOk = ref(false)
 const keyword = ref('')
 const results = ref([])
-const showPop = ref(false)
 const updating = ref(false)
 const updatePanel = ref(null)
 const freshness = ref({ latest_score_date: null, days_since: null, stale: false })
+
+const iconMap = {
+  '/': markRaw(DataAnalysis),
+  '/pools': markRaw(Grid),
+  '/decisions': markRaw(EditPen),
+  '/portfolio': markRaw(Money),
+  '/recommendations': markRaw(Star),
+  '/sources': markRaw(Connection),
+  '/settings': markRaw(Setting),
+}
+function iconOf(path) { return iconMap[path] || Grid }
+
+const activeMenu = computed(() => {
+  if (route.path.startsWith('/stocks')) return '/pools'
+  if (route.path.startsWith('/pools')) return '/pools'
+  return route.path
+})
 
 const freshnessText = computed(() => {
   const f = freshness.value
   if (!f.latest_score_date) return '还没有评分数据'
   if (f.days_since === null) return `最近评分 ${f.latest_score_date}`
-  if (f.days_since === 0) return `最近评分 今天`
+  if (f.days_since === 0) return '最近评分 今天'
   return `最近评分 ${f.days_since} 天前`
 })
 
-function isActive(r) {
-  if (r.path === '/') return route.path === '/'
-  if (r.name === 'pools') return route.path.startsWith('/pools') || route.path.startsWith('/stocks')
-  return route.path.startsWith(r.path)
+function poolTagType(pool) {
+  const m = {
+    candidate: 'primary',
+    observation: 'success',
+    reserve: 'info',
+    tuna: 'warning',
+    removed: 'info',
+  }
+  return m[pool] || 'info'
 }
 
-function go(path) {
-  router.push(path)
+function onMenuSelect(index) {
+  if (index === route.path) return
+  router.push(index)
 }
 
 let timer = null
-async function onSearch() {
+function querySearch(q, cb) {
   clearTimeout(timer)
-  const q = keyword.value.trim()
-  if (!q) {
-    showPop.value = false
-    results.value = []
+  const query = (q || '').trim()
+  if (!query) {
+    cb([])
     return
   }
   timer = setTimeout(async () => {
     try {
-      const r = await api.search(q)
+      const r = await api.search(query)
       results.value = r.items
-      showPop.value = true
+      cb(r.items.map((it) => ({ ...it, value: it.name })))
     } catch (e) {
       results.value = []
+      cb([])
     }
   }, 180)
 }
 
-function jumpFirst() {
-  if (results.value.length) openStock(results.value[0].code)
-}
-
-function openStock(code) {
-  showPop.value = false
+function onSelectResult(item) {
   keyword.value = ''
-  router.push(`/stocks/${code}`)
-}
-
-function closeSearch() {
-  showPop.value = false
+  router.push(`/stocks/${item.code}`)
 }
 
 function onUpdate() {
   if (updating.value) return
   updating.value = true
-  // 真正的 7 阶段跑在后端线程里，进度面板自己轮询 /api/update/status
   updatePanel.value?.start()
 }
 
 function onUpdateDone(st) {
   updating.value = false
   if (st && ['ok', 'partial'].includes(st.status)) {
-    loadMeta()           // 数据变新了，顶栏的「最近评分」跟着更新
+    loadMeta()
   }
-}
-
-function onDocClick(e) {
-  if (!e.target.closest('.search-box')) showPop.value = false
 }
 
 async function loadMeta() {
@@ -168,18 +201,10 @@ async function loadMeta() {
 }
 
 onMounted(async () => {
-  document.addEventListener('click', onDocClick)
-  await loadMeta()        // 先把顶栏数据拉下来，骨架才有内容
-  notifyDesktopReady()    // 再自报就绪
+  await loadMeta()
+  notifyDesktopReady()
 })
 
-// 等页面「真有内容」再往下走。
-//
-// 为什么不能在 onMounted 里直接报：那一刻路由组件还没挂载完，
-// loadMeta 的请求也还没回来，body.innerText 只有导航骨架，
-// 外壳和冒烟脚本拿到一个很小的 bodyLen，会误判成白屏。
-// 客户端渲染没有 load 事件可用，就只能轮询到有内容为止；
-// 到点了还没内容也照报，但把真实的 bodyLen 带出去，让检查如实失败。
 function waitForContent(minLen = 200, timeoutMs = 5000) {
   return new Promise((resolve) => {
     const started = Date.now()
@@ -192,12 +217,6 @@ function waitForContent(minLen = 200, timeoutMs = 5000) {
   })
 }
 
-// 前端就绪自报。
-//
-// 原来走 pywebview 的 JS 桥（window.pywebview.api.app_ready），实测不行：
-// 6.2.1 的 edgechromium 后端注入桥脚本本身就会卡住，window.pywebview 根本不存在。
-// 改成走 HTTP 自报，桌面外壳和冒烟脚本都从 GET /api/meta/ready 读取状态。
-// 桥那条路留着当兼容，桥在就顺手也报一下。
 async function notifyDesktopReady() {
   await waitForContent()
 
@@ -218,7 +237,7 @@ async function notifyDesktopReady() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload()),
     }).catch(() => {
-      done = false // 后端还没起来就下次再试
+      done = false
     })
 
     const a = window.pywebview && window.pywebview.api
@@ -241,5 +260,102 @@ async function notifyDesktopReady() {
   }, 50)
 }
 
-onUnmounted(() => document.removeEventListener('click', onDocClick))
+onUnmounted(() => {})
 </script>
+
+<style scoped>
+.shell {
+  height: 100vh;
+  width: 100%;
+  background: var(--bg-page);
+}
+
+.sidebar {
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.brand {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.brand .name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 2px;
+}
+.brand .sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  letter-spacing: 4px;
+}
+
+.nav-menu {
+  flex: 1;
+  border-right: none !important;
+  margin-top: 8px;
+}
+.nav-menu :deep(.el-menu-item) {
+  height: 42px;
+  line-height: 42px;
+  margin: 2px 8px;
+  border-radius: 8px;
+}
+.nav-menu :deep(.el-menu-item.is-active) {
+  background: var(--primary-light) !important;
+}
+.nav-ico {
+  font-size: 18px;
+}
+
+.sidebar-foot {
+  padding: 12px 14px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sidebar-foot .ver {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.topbar {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 14px;
+  height: 58px !important;
+}
+.search-wrap { flex-shrink: 0; }
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.search-result-item .code {
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  width: 56px;
+}
+.search-result-item .nm {
+  flex: 1;
+  font-size: 13px;
+}
+.spacer { flex: 1; }
+
+.content {
+  padding: 20px 24px !important;
+  overflow-y: auto;
+  background: var(--bg-page);
+}
+</style>

@@ -5,7 +5,7 @@
 """
 import math
 
-from app.services.plr import compute_plr, find_peaks, MIN_BARS
+from app.services.plr import compute_plr, find_peaks, plr_to_score, MIN_BARS
 
 
 def _bars(closes, vols=None):
@@ -201,3 +201,49 @@ def test_no_inflated_plr_like_zhongwang_case():
     assert out["flag"] == "贴脸剔除"
     assert out["plr"] is None               # 不得给出虚高值
     assert out["s1_dist"] < 1.5
+
+
+# ---------- plr_to_score：0~1 参考分（方案C，不计入评分引擎） ----------
+
+def test_score_zero_when_empty_result():
+    assert plr_to_score({}) == 0.0
+    assert plr_to_score(None) == 0.0
+
+
+def test_score_zero_when_flag_reject():
+    assert plr_to_score({"flag": "贴脸剔除", "plr": None}) == 0.0
+    assert plr_to_score({"flag": "数据不足", "plr": None}) == 0.0
+    # 即使贴了脸但残留 plr 数值，也不给分（贴脸=破位风险线）
+    assert plr_to_score({"flag": "贴脸剔除", "plr": 43.95}) == 0.0
+
+
+def test_score_thin_flag():
+    assert plr_to_score({"flag": "贴线降仓", "plr": 5.0}) == 0.3
+
+
+def test_score_ok_low_plr():
+    assert plr_to_score({"flag": "ok", "plr": 1.2}) == 0.4
+    assert plr_to_score({"flag": "ok", "plr": 0.5}) == 0.4
+
+
+def test_score_ok_mid_plr():
+    assert plr_to_score({"flag": "ok", "plr": 2.0}) == 0.7
+    assert plr_to_score({"flag": "ok", "plr": 3.0}) == 0.7
+
+
+def test_score_ok_high_plr():
+    assert plr_to_score({"flag": "ok", "plr": 3.01}) == 1.0
+    assert plr_to_score({"flag": "ok", "plr": 10.0}) == 1.0
+
+
+def test_score_ok_none_plr():
+    # flag=ok 但 plr 缺失（理论边界）→ 不给分
+    assert plr_to_score({"flag": "ok", "plr": None}) == 0.0
+
+
+def test_score_range_bounded():
+    # 所有输出都在 [0,1] 区间
+    for case in [{"flag": "ok", "plr": p} for p in (0, 1, 2, 3, 100)] + \
+                [{"flag": "贴线降仓", "plr": 5}, {"flag": "贴脸剔除", "plr": 50}]:
+        v = plr_to_score(case)
+        assert 0.0 <= v <= 1.0

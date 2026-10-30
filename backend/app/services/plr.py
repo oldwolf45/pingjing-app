@@ -120,3 +120,33 @@ def compute_plr(klines: list[dict[str, Any]], price: float,
     # 防虚高第二道：s1 距 1.5%~2% 标"贴线"，PLR 照给但提示降仓
     out["flag"] = "贴线降仓" if out["s1_dist"] < S1_DIST_THIN else "ok"
     return out
+
+
+def plr_to_score(result: dict[str, Any]) -> float:
+    """把 PLR 结果折算成 0~1 分的"参考分"（方案C：独立展示，不计入评分引擎总分）。
+
+    紫苏叶 6 维基本面评分已是 10 分制且金样本锁定，PLR 作为技术信号参考项
+    单独折算成 1 分制展示，不进 scoring_engine、不改池子判定。
+
+    档位（沿用三态语义，技术信号越可靠分越高）：
+      贴脸剔除 / 数据不足 / 算不出 → 0.0   破位风险线或无信号，不给分
+      贴线降仓                      → 0.3   信号偏险，轻仓
+      ok 且 PLR < 2                 → 0.4   赔率不足
+      ok 且 2 ≤ PLR ≤ 3             → 0.7   临界可接受
+      ok 且 PLR > 3                 → 1.0   达标（hermes 门槛）
+    """
+    if not result:
+        return 0.0
+    flag = result.get("flag")
+    if flag != "ok" and flag != "贴线降仓":
+        return 0.0
+    if flag == "贴线降仓":
+        return 0.3
+    plr = result.get("plr")
+    if plr is None:
+        return 0.0
+    if plr > 3:
+        return 1.0
+    if plr >= 2:
+        return 0.7
+    return 0.4
