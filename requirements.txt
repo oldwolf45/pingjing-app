@@ -1,0 +1,18 @@
+# 紫苏叶策略 APP — 运行时依赖
+# 用 pip install -r requirements.txt 安装
+
+# === 核心 Web 框架 ===
+fastapi==0.115.5
+uvicorn==0.32.1
+pydantic==2.13.4
+pydantic-settings==2.7.1
+httpx==0.28.1
+
+# === 桌面窗口 ===
+pywebview==5.3.2
+
+# === 开发依赖（可单独用 [dev] 安装）===
+# pytest>=8.3
+# pytest-cov>=5.0
+# pyinstaller>=6.11
+# ruff>=0.6
