@@ -56,21 +56,91 @@ def _startmenu_lnk(reg_key: str) -> Path:
 
 
 def _make_shortcut(lnk: Path, target: Path, workdir: Path) -> bool:
-    """用 WScript.Shell 建 .lnk。PowerShell 在 Win10/11 上一定有，比 ctypes 拼 COM 稳。"""
+    """用 shell32 的 IShellLink COM 建 .lnk，纯 ctypes，不起外部进程。
+
+    之前是 spawn powershell 跑 WScript.Shell：构建机/CI 上可能找不到
+    powershell、参数编码出错或非交互会话里 COM 起不来，错误被吞掉后
+    快捷方式被静默跳过，装完桌面没有图标。ctypes 直接调 COM 不依赖
+    外部可执行文件，任何 Windows + Python 都能跑。
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    class GUID(ctypes.Structure):
+        _fields_ = [
+            ("Data1", wintypes.DWORD),
+            ("Data2", wintypes.WORD),
+            ("Data3", wintypes.WORD),
+            ("Data4", ctypes.c_ubyte * 8),
+        ]
+
+    CLSID_ShellLink = GUID(0x00021401, 0x0000, 0x0000,
+                           (ctypes.c_ubyte * 8)(0xC0, 0, 0, 0, 0, 0, 0, 0x46))
+    IID_IShellLinkW = GUID(0x000214F9, 0x0000, 0x0000,
+                           (ctypes.c_ubyte * 8)(0xC0, 0, 0, 0, 0, 0, 0, 0x46))
+    IID_IPersistFile = GUID(0x0000010B, 0x0000, 0x0000,
+                            (ctypes.c_ubyte * 8)(0xC0, 0, 0, 0, 0, 0, 0, 0x46))
+
+    # 3.13 起 wintypes 里没有 HRESULT 了，HRESULT 就是 c_long
+    HRESULT = ctypes.c_long
+    _QueryInterface = ctypes.WINFUNCTYPE(
+        HRESULT, ctypes.c_void_p, ctypes.POINTER(GUID), ctypes.POINTER(ctypes.c_void_p))
+    _Release = ctypes.WINFUNCTYPE(wintypes.ULONG, ctypes.c_void_p)
+    _SetPath = ctypes.WINFUNCTYPE(HRESULT, ctypes.c_void_p, wintypes.LPCWSTR)
+    _SetWorkingDirectory = ctypes.WINFUNCTYPE(HRESULT, ctypes.c_void_p, wintypes.LPCWSTR)
+    _SetIconLocation = ctypes.WINFUNCTYPE(
+        HRESULT, ctypes.c_void_p, wintypes.LPCWSTR, wintypes.INT)
+    _SetDescription = ctypes.WINFUNCTYPE(HRESULT, ctypes.c_void_p, wintypes.LPCWSTR)
+    _Save = ctypes.WINFUNCTYPE(HRESULT, ctypes.c_void_p, wintypes.LPCWSTR, wintypes.BOOL)
+
     lnk.parent.mkdir(parents=True, exist_ok=True)
-    script = (
-        f"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}');"
-        f"$s.TargetPath='{target}';$s.WorkingDirectory='{workdir}';"
-        f"$s.IconLocation='{target},0';$s.Description='{APP_NAME}策略';$s.Save()"
-    )
     try:
-        r = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-            capture_output=True, text=True, timeout=60,
-        )
-        return r.returncode == 0 and lnk.is_file()
-    except (OSError, subprocess.SubprocessError):
+        ole32 = ctypes.WinDLL("ole32", use_last_error=True)
+        ole32.CoInitialize.restype = HRESULT
+        ole32.CoInitialize.argtypes = [ctypes.c_void_p]
+        ole32.CoCreateInstance.restype = HRESULT
+        ole32.CoCreateInstance.argtypes = [
+            ctypes.POINTER(GUID), ctypes.c_void_p, wintypes.DWORD,
+            ctypes.POINTER(GUID), ctypes.POINTER(ctypes.c_void_p),
+        ]
+    except OSError:
         return False
+
+    ole32.CoInitialize(None)
+
+    pobj = ctypes.c_void_p()
+    persist = ctypes.c_void_p()
+    try:
+        hr = ole32.CoCreateInstance(ctypes.byref(CLSID_ShellLink), None, 1,
+                                      ctypes.byref(IID_IShellLinkW), ctypes.byref(pobj))
+        if hr < 0 or not pobj.value:
+            return False
+
+        # IShellLinkW 虚表：IUnknown(0-2) 之后 SetDescription=7、
+        # SetWorkingDirectory=9、SetIconLocation=17、SetPath=20。
+        vtbl = ctypes.cast(pobj, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)))[0]
+
+        hr = _SetPath(vtbl[20])(pobj, str(target))
+        hr = hr or _SetWorkingDirectory(vtbl[9])(pobj, str(workdir))
+        hr = hr or _SetIconLocation(vtbl[17])(pobj, str(target), 0)
+        hr = hr or _SetDescription(vtbl[7])(pobj, f"{APP_NAME}策略")
+        if hr < 0:
+            return False
+
+        hr = _QueryInterface(vtbl[0])(pobj, ctypes.byref(IID_IPersistFile),
+                                      ctypes.byref(persist))
+        if hr < 0 or not persist.value:
+            return False
+
+        # IPersistFile 虚表：IUnknown(0-2) 之后 GetClassID=3、Save=6。
+        pvtbl = ctypes.cast(persist, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)))[0]
+        hr = _Save(pvtbl[6])(persist, str(lnk), True)
+        return hr >= 0 and lnk.is_file()
+    finally:
+        for obj in (persist, pobj):
+            if obj.value:
+                tbl = ctypes.cast(obj, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p)))[0]
+                _Release(tbl[2])(obj)
 
 
 def _write_uninstall_entry(root: Path, version: str, reg_key: str) -> str:
