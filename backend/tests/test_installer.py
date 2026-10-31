@@ -184,7 +184,7 @@ def test_cli_wrapper_installs(sandbox, fake_dist, tmp_path, capsys, monkeypatch)
     r = subprocess.run(
         [sys.executable, str(script), "--source", str(fake_dist), "--root", str(root),
          "--reg-key", "紫苏叶_unittest", "--version", "1.2.3"],
-        capture_output=True, text=True, timeout=180,
+        capture_output=True, text=True, encoding="utf-8", timeout=180,
     )
     assert r.returncode == 0, r.stderr
     out = json.loads(r.stdout)

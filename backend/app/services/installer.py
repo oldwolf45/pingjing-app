@@ -282,6 +282,10 @@ def uninstall(root: Path, reg_key: str = APP_NAME, keep_data: bool = True) -> di
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Windows 非中文 locale 下 stdout 是 cp1252，打印中文 JSON 会 UnicodeEncodeError，
+    # 安装/卸载在英文系统上直接崩。统一按 UTF-8 输出。
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description="紫苏叶策略 安装/卸载")
     ap.add_argument("--uninstall", action="store_true")
     ap.add_argument("--source", default=str(Path("dist") / APP_NAME))
